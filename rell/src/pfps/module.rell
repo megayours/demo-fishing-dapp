@@ -1,0 +1,12 @@
+@mount("pfp")
+module;
+
+namespace ft4 {
+  import lib.ft4.accounts;
+  import lib.ft4.auth;
+}
+
+namespace yours {
+  import lib.yours.*;
+  import lib.yours.external;
+}

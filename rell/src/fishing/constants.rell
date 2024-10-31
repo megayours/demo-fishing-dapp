@@ -1,0 +1,3 @@
+val module_name: name = "fishing";
+val fishing_rod_project: name = "MegaYours";
+val fishing_rod_collection: name = "MegaRods";

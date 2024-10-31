@@ -1,0 +1,63 @@
+function _armor_dto(armor) {
+  return armor_dto(
+    project = armor.equipment.token.collection.project.name,
+    collection = armor.equipment.token.collection.name,
+    id = armor.equipment.token.id,
+    name = armor.equipment.token.name,
+    description = armor.equipment.description,
+    image = armor.equipment.image,
+    slot = armor.equipment.slot,
+    weight = armor.equipment.weight,
+    defense = armor.defense
+  );
+}
+
+function _weapon_dto(weapon) {
+  return weapon_dto(
+    project = weapon.equipment.token.collection.project.name,
+    collection = weapon.equipment.token.collection.name,
+    id = weapon.equipment.token.id,
+    name = weapon.equipment.token.name,
+    description = weapon.equipment.description,
+    image = weapon.equipment.image,
+    slot = weapon.equipment.slot,
+    weight = weapon.equipment.weight,
+    damage = weapon.damage
+  );
+}
+
+query get_equipped(account_id: byte_array) {
+  val equipments = list<gtv>();
+
+  val pfp = pfps.get_equipped_pfp(account_id)?.pfp;
+  if (pfp == null) return equipments;
+
+  (e: equipped_equipment, a: armor) @* { 
+    e.pfp == pfp,
+    e.equipment == a.equipment 
+  } ( equipments.add(_armor_dto(a).to_gtv_pretty()) );
+
+  (e: equipped_equipment, w: weapon) @* {
+    e.pfp == pfp,
+    e.equipment == w.equipment
+  } ( equipments.add(_weapon_dto(w).to_gtv_pretty()) ) limit 1;
+
+  return equipments;
+}
+
+query get_armor(account_id: byte_array, slot: text) {
+  return (a: armor, tb: yours.token_balance) @* {
+    a.equipment.slot == slot,
+    a.equipment.token == tb.token,
+    tb.account.id == account_id,
+    tb.amount > 0
+  } ( _armor_dto (a) );
+}
+
+query get_weapon(account_id: byte_array) {
+  return (w: weapon, tb: yours.token_balance) @* {
+    w.equipment.token == tb.token,
+    tb.account.id == account_id,
+    tb.amount > 0
+  } ( _weapon_dto (w) );
+}

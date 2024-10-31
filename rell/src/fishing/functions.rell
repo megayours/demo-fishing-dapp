@@ -1,0 +1,3 @@
+function _ensure_stats(pfps.pfp) {
+  return stats @? { pfp } ?: create stats ( pfp, 0 );
+}

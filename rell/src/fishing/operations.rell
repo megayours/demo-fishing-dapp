@@ -1,0 +1,39 @@
+@extend(ft4.auth.auth_handler)
+function () = ft4.auth.add_auth_handler(flags = []);
+
+operation equip_fishing_rod(pfp_project: name, pfp_collection: name, pfp_id: integer, fishing_rod_id: integer) {
+  val account = ft4.auth.authenticate();
+
+  val pfp = require(pfps.get(pfp_project, pfp_collection, pfp_id), "PFP not found");
+
+  val fishing_rod = fishing_rod @ { .token.id == fishing_rod_id };
+  require(
+    yours.token_balance @? { account, fishing_rod.token } != null,
+    "Not the owner of the token"
+  );
+
+  create equipped_fishing_rod ( pfp, fishing_rod );
+}
+
+operation unequip_fishing_rod(pudgy_penguin_id: integer) {
+  val account = ft4.auth.authenticate();
+
+  val equipped_fishing_rod = equipped_fishing_rod @ { .pfp.token.id == pudgy_penguin_id };
+  require(
+    yours.token_balance @? { account, equipped_fishing_rod.fishing_rod.token } != null,
+    "Not the owner of the token"
+  );
+
+  delete equipped_fishing_rod;
+}
+
+operation pull() {
+  val account = ft4.auth.authenticate();
+
+  val pfp = require(pfps.get_equipped_pfp(account.id)?.pfp, "No equipped PFP");
+  val stats = _ensure_stats(pfp);
+  stats.fishes_caught += 1;
+
+  val fishing_rod = require(equipped_fishing_rod @? { pfp } ( .fishing_rod ), "No equipped fishing rod");
+  fishing_rod.durability -= 1;
+}

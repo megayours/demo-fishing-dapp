@@ -1,0 +1,71 @@
+@extend(pfps.on_unequip)
+function on_unequip(pfp: pfps.pfp) {
+  delete equipped_equipment @* { pfp };
+}
+
+@extend(yours.external.on_external_create)
+function on_external_create(token: yours.token, attributes: map<text, gtv>) {
+  if (token.collection.project.name != equipment_project or token.collection.name != equipment_collection) return;
+  _create_equipment(token, attributes);
+}
+
+@extend(yours.after_transfer)
+function on_transfer(yours.token, from: ft4.accounts.account, to: ft4.accounts.account, amount: integer) {
+  val equipment = equipment @? { token };
+  if (equipment != null) {
+    _unequip_tool(from, equipment);
+  }
+}
+
+function _create_equipment(token: yours.token, attributes: map<text, gtv>) {
+  var equipment = equipment @? { token };
+  if (equipment == null) {
+    val slot_gtv = attributes.get_or_null("slot");
+    if (slot_gtv == null) return;
+    val slot = text.from_gtv(slot_gtv);
+
+    val weight_gtv = attributes.get_or_null("weight");
+    if (weight_gtv == null) return;
+    val weight = integer.from_gtv(weight_gtv);
+
+    val description_gtv = attributes.get_or_null("description");
+    if (description_gtv == null) return;
+    val description = text.from_gtv(description_gtv);
+
+    val image_gtv = attributes.get_or_null("image");
+    if (image_gtv == null) return;
+    val image = text.from_gtv(image_gtv);
+
+    equipment = create equipment ( token, slot, weight, description, image );
+
+    when (slot) {
+      "head", "chest", "hands", "legs", "feets" -> {
+        val defense_gtv = attributes.get_or_null("defense");
+        if (defense_gtv == null) return;
+        val defense = integer.from_gtv(defense_gtv);
+        create armor ( equipment, defense );
+      };
+      "weapon" -> {
+        val damage_gtv = attributes.get_or_null("damage");
+        if (damage_gtv == null) return;
+        val damage = integer.from_gtv(damage_gtv);
+        create weapon ( equipment, damage );
+      };
+      else -> return;
+    }
+  }
+}
+
+function _unequip_tool(account: ft4.accounts.account, equipment) {
+  val pfp = pfps.get_equipped_pfp(account.id)?.pfp;
+  if (pfp == null) return;
+
+  val equipped = equipped_equipment @? { pfp, equipment };
+  if (equipped == null) return;
+
+  // Only unequip if out of balance
+  val balance = yours.get_balance(equipped.equipment.token, account);
+  if (balance >= 1) return;
+
+  delete equipped;
+}

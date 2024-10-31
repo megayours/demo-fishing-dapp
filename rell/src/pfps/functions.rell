@@ -1,0 +1,8 @@
+function get(project: name, collection: name, id: integer): pfp? {
+  val token = require(yours.get_token(project, collection, id), "Token not found");
+  return pfp @? { token };
+}
+
+function get_equipped_pfp(account_id: byte_array) {
+  return equipped_pfp @? { .account.id == account_id };
+}

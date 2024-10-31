@@ -1,0 +1,5 @@
+@extendable
+function on_equip(pfp: pfp);
+
+@extendable
+function on_unequip(pfp: pfp);

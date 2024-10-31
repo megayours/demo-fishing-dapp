@@ -1,0 +1,3 @@
+val module_name = "equipments";
+val equipment_project = "MegaYours";
+val equipment_collection = "Equipment";

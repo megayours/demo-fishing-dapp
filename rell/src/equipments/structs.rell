@@ -1,0 +1,23 @@
+struct armor_dto {
+  project: text;
+  collection: text;
+  id: integer;
+  name: text;
+  description: text;
+  image: text;
+  slot: text;
+  weight: integer;
+  defense: integer;
+}
+
+struct weapon_dto {
+  project: text;
+  collection: text;
+  id: integer;
+  name: text;
+  description: text;
+  image: text;
+  slot: text;
+  weight: integer;
+  damage: integer;
+}

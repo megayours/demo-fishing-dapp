@@ -1,0 +1,23 @@
+operation equip(project: text, collection: text, token_id: integer) {
+  val account = ft4.auth.authenticate();
+  val token = require(
+    yours.get_token(project, collection, token_id),
+    "Token not found %s/%s/%s".format(project, collection, token_id)
+  );
+  require(
+    yours.get_balance(token, account) > 0,
+    "Token balance is 0 %s/%s/%s".format(project, collection, token_id)
+  );
+  val equipment = require(
+    equipment @? { token },
+    "Token is not an equipment %s/%s/%s".format(project, collection, token_id)
+  );
+  val equipped_pfp = require(pfps.get_equipped_pfp(account.id), "No equipped pfp").pfp;
+
+  // Delete potential previously equipped tool
+  delete equipped_equipment @? { equipped_pfp, equipment.slot };
+  create equipped_equipment ( equipped_pfp, equipment.slot, equipment );
+}
+
+@extend(ft4.auth.auth_handler)
+function () = ft4.auth.add_auth_handler(scope = rell.meta(equip).mount_name, flags = []);

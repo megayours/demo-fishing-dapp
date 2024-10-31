@@ -1,0 +1,22 @@
+entity equipment {
+  key yours.token;
+  index slot: text;
+  weight: integer;
+  image: text;
+  description: text;
+}
+
+entity weapon {
+  key equipment;
+  damage: integer;
+}
+
+entity armor {
+  key equipment;
+  defense: integer;
+}
+
+entity equipped_equipment {
+  key pfps.pfp, slot: text;
+  index equipment;
+}

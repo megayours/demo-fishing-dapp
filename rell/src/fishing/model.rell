@@ -1,0 +1,14 @@
+entity fishing_rod {
+  key yours.token;
+  mutable durability: integer;
+}
+
+entity equipped_fishing_rod {
+  key pfps.pfp;
+  index fishing_rod;
+}
+
+entity stats {
+  key pfps.pfp;
+  mutable fishes_caught: integer;
+}

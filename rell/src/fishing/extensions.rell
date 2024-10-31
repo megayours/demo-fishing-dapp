@@ -1,0 +1,51 @@
+@extend(yours.populate_metadata)
+function populate_metadata(yours.token, modules: set<name>): map<text, gtv> {
+  if (not modules.contains(module_name)) return map<text, gtv>();
+  val metadata = map<text, gtv>();
+
+  val fishing_rod = require(fishing_rod @? { token }, "Token is not a fishing rod");
+  metadata.put("durability", fishing_rod.durability.to_gtv());
+  val equipped_fishing_rod = equipped_fishing_rod @? { .fishing_rod.token == token };
+  if (equipped_fishing_rod != null) {
+    metadata.put("equipped_by", equipped_fishing_rod.pfp.token.name.to_gtv());
+  }
+
+  return metadata;
+}
+
+@extend(yours.after_apply_transfer)
+function after_apply_transfer(yours.token, modules: set<name>, attributes: map<text, gtv>) {
+  if (token.collection.project.name != fishing_rod_project) return;
+  if (token.collection.name != fishing_rod_collection) return;
+  if (not yours.has_module(token, module_name)) {
+    yours.attach_module(token, module_name);
+  }
+
+  if (fishing_rod @? { token } != null) return;
+  create fishing_rod ( token, durability = 100 );
+}
+
+@extend(yours.before_init_transfer)
+function before_init_transfer(yours.token, ft4.accounts.account) {
+  require(equipped_fishing_rod @? { .fishing_rod.token == token } == null, "Cannot transfer an equipped item");
+}
+
+function _is_pfp(token: yours.token) {
+  return token.collection.project.name == fishing_rod_project and token.collection.name == fishing_rod_collection;
+}
+
+@extend(yours.after_transfer)
+function on_transfer(yours.token, from: ft4.accounts.account, to: ft4.accounts.account, amount: integer) {
+  if (yours.has_module(token, module_name)) {
+    _handle_fishing_rod_transfer(token, from, to);
+  } else if (_is_pfp(token)) {
+    val pfp = pfps.get(token.collection.project.name, token.collection.name, token.id);
+    if (pfp != null) {
+      delete equipped_fishing_rod @? { .pfp == pfp };
+    }
+  }
+}
+
+function _handle_fishing_rod_transfer(token: yours.token, from: ft4.accounts.account, to: ft4.accounts.account) {
+  delete equipped_fishing_rod @? { .fishing_rod.token == token };
+}

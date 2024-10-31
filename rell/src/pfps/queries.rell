@@ -1,0 +1,36 @@
+query get_all(account_id: byte_array) {
+  return (pfp, tb: yours.token_balance) @* { 
+    pfp.token == tb.token,
+    tb.account.id == account_id,
+    tb.amount > 0
+  } ( _pfp_dto (pfp) );
+}
+
+query get_equipped(account_id: byte_array) {
+  val pfp = _get_equipped_pfp(account_id);
+  return if (pfp != null) _pfp_dto(pfp) else null;
+}
+
+function _get_equipped_pfp(account_id: byte_array) {
+  return equipped_pfp @? { .account.id == account_id } ( .pfp );
+}
+
+struct pfp_dto {
+  project: text;
+  collection: text;
+  id: integer;
+  name: text;
+  description: text;
+  image: text;
+}
+
+function _pfp_dto(pfp) {
+  return pfp_dto(
+    project = pfp.token.collection.project.name,
+    collection = pfp.token.collection.name,
+    id = pfp.token.id,
+    name = pfp.token.name,
+    description = pfp.description,
+    image = pfp.image
+  );
+}

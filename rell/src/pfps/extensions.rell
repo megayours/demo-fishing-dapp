@@ -1,0 +1,48 @@
+@extend(yours.external.on_external_create)
+function on_external_create(token: yours.token, attributes: map<text, gtv>) {
+  when (token.collection.name) {
+    "Pudgy Penguins" -> _create_pfp(token, attributes);
+    else -> return;
+  }
+}
+
+@extend(yours.after_transfer)
+function on_transfer(yours.token, from: ft4.accounts.account, to: ft4.accounts.account, amount: integer) {
+  val pfp = pfp @? { token };
+  if (pfp != null) {
+    _unequip_pfp(pfp, from);
+    _equip_pfp(pfp, to);
+  }
+}
+
+function _create_pfp(token: yours.token, attributes: map<text, gtv>) {
+  val pfp = pfp @? { token };
+  if (pfp == null) {
+    val description_gtv = attributes.get_or_null("description");
+    val description = if (description_gtv != null) text.from_gtv(description_gtv) else "";
+
+    val image_gtv = attributes.get_or_null("image");
+    val image = if (image_gtv != null) text.from_gtv(image_gtv) else "";
+    create pfp ( token, description, image );
+  }
+}
+
+function _unequip_pfp(pfp, account: ft4.accounts.account) {
+  val equipped_pfp = equipped_pfp @? { account, pfp };
+  if (equipped_pfp != null) {
+    delete equipped_pfp;
+    on_unequip(pfp);
+  }
+}
+
+function _equip_pfp(pfp, account: ft4.accounts.account) {
+  if (equipped_pfp @? { account } != null) {
+    // Already equips a PFP
+    return;
+  }
+  create equipped_pfp(account, pfp);
+  on_equip(pfp);
+}
+
+
+

@@ -1,0 +1,42 @@
+operation register_armor(
+  name,
+  slot: name,
+  image: text,
+  description: text,
+  weight: integer,
+  defense: integer
+) {
+  val equipment = _register_equipment(name, slot, image, description, weight);
+  create armor ( equipment, defense );
+}
+
+operation register_weapon(
+  name,
+  slot: name,
+  image: text,
+  description: text,
+  weight: integer,
+  damage: integer
+) {
+  val equipment = _register_equipment(name, slot, image, description, weight);
+  create weapon ( equipment, damage );
+}
+
+function _register_equipment(
+  name,
+  slot: name,
+  image: text,
+  description: text,
+  weight: integer
+) {
+  val spec = yours.token_info(
+    project = yours.project_info(equipment_project, chain_context.blockchain_rid),
+    collection = equipment_collection,
+    type = yours.token_type.yours,
+    name,
+    modules = [module_name]
+  );
+
+  val token = yours.create_token(spec);
+  return create equipment ( token, slot, weight, image, description );
+}
