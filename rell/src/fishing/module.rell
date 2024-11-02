@@ -11,3 +11,4 @@ namespace yours {
 }
 
 import ^.pfps;
+import ^.equipments;

@@ -22,7 +22,10 @@ function after_apply_transfer(yours.token, modules: set<name>, attributes: map<t
   }
 
   if (fishing_rod @? { token } != null) return;
-  create fishing_rod ( token, durability = 100 );
+  val durability = integer.from_gtv(attributes.get("durability"));
+  val description = text.from_gtv(attributes.get("description"));
+  val image = text.from_gtv(attributes.get("image"));
+  create fishing_rod ( token, durability = durability, description = description, image = image );
 }
 
 @extend(yours.before_init_transfer)

@@ -1,0 +1,106 @@
+namespace random {
+  val RANDOM_RID = byte_array.from_hex("35b8c9a0cbd45b44fb73cb193cfbe16c76703a5a72992f254eb5d8fb026dd22c");
+
+  function number_in_range(from: integer, to: integer): integer {
+    require(
+      from <= to,
+      "To must be higher than from"
+    );
+    return from + number(to - from);
+  }
+
+  // Returns a number from zero to high (non-inclusive)
+  function number(high: integer = 100): integer {
+    if (high == 0) return 0; // avoid division by zero
+    return (op_context.last_block_time - op_context.block_height - op_context.op_index) % high;
+  }
+
+  function number_with_seed(high: integer, seed: integer = 0) {
+    if (high == 0) return 0;
+    val i = seed % 32;
+
+    val last_block_rid = get_last_block_rid();
+
+    val hex = last_block_rid.to_hex()[i];
+    val random_value = integer.from_hex(hex) + op_context.last_block_time;
+
+    return random_value % high;
+  }
+
+  function random_for_queries(high: integer, seed: integer = 135) {
+    if (high == 0) return 0;
+    val i = seed % 32;
+
+    val last_block_data = get_last_block_data();
+    val random_value = last_block_data.block_rid.to_hex()[i];
+
+    val random_number = (last_block_data.block_timestamp - last_block_data.block_height - last_block_data.rowid) + integer.from_hex(random_value);
+    return random_number % high;
+  }
+
+  function get_last_block_rid(): byte_array {
+    // We count on the chain to have at least 2 blocks written, since the last doesn't have block_rid yet
+    val blocks = block @* { } ( @sort_desc @omit .rowid, $ ) limit 2;
+
+    return when (blocks.size()) {
+      1 -> blocks[0].block_rid;
+      2 -> blocks[1].block_rid;
+      else -> RANDOM_RID;
+    };
+  }
+
+  struct block_dto {
+    timestamp;
+    block_rid: byte_array;
+    block_height: integer;
+    rowid: integer;
+  }
+
+  function get_last_block_data(): (
+    rowid: integer,
+    block_height: integer,
+    block_timestamp: integer,
+    block_rid: byte_array
+  ) {
+
+    val blocks = block @* { } (
+      block_dto (
+        timestamp = $.timestamp,
+        block_rid = $.block_rid,
+        block_height = $.block_height,
+        rowid = $.rowid.to_integer()
+      )
+    ) limit 2;
+
+    return when (blocks.size()) {
+      1 -> (
+        rowid = blocks[0].rowid,
+        block_height = blocks[0].block_height,
+        block_timestamp = blocks[0].timestamp,
+        block_rid = blocks[0].block_rid
+      );
+      2 -> (
+        rowid = blocks[1].rowid,
+        block_height = blocks[1].block_height,
+        block_timestamp = blocks[1].timestamp,
+        block_rid = blocks[1].block_rid
+      );
+      else -> (
+        rowid = 88,
+        block_height = 32253,
+        block_timestamp = 55554444333,
+        block_rid = RANDOM_RID
+      );
+    };
+  }
+
+  function byte_array(arrays: list<byte_array>): byte_array {
+    val random_index = number(arrays.size());
+    return arrays[random_index];
+  }
+
+  function name(names: list<name>): name {
+    val random_index = number(names.size());
+    return names[random_index];
+  }
+}

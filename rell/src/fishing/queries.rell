@@ -1,18 +1,66 @@
-struct pudgy_rod {
+struct fishing_rod_dto {
+  project: name;
+  collection: name;
   id: integer;
   name: name;
   durability: integer;
+  image: text;
 }
 
-query get_rods(account_id: byte_array): list<pudgy_rod> {
+query get_rods(account_id: byte_array): list<fishing_rod_dto> {
   return (yours.token_balance, fishing_rod) @* {
     token_balance.account.id == account_id,
     fishing_rod.token == token_balance.token
   } (
-    pudgy_rod (
+    fishing_rod_dto (
+      project = fishing_rod.token.collection.project.name,
+      collection = fishing_rod.token.collection.name,
       id = fishing_rod.token.id,
       name = fishing_rod.token.name,
-      durability = fishing_rod.durability
+      durability = fishing_rod.durability,
+      image = fishing_rod.image
     )
+  );
+}
+
+struct inventory_item_dto {
+  project: name;
+  collection: name;
+  id: integer;
+  name: name;
+  image: text;
+  amount: integer;
+}
+
+query get_caught_fishes(account_id: byte_array): list<inventory_item_dto> {
+  return (yours.token_balance, fish) @* {
+    token_balance.account.id == account_id,
+    fish.token == token_balance.token
+  } (
+    inventory_item_dto (
+      project = fish.token.collection.project.name,
+      collection = fish.token.collection.name,
+      id = fish.token.id,
+      name = fish.token.name,
+      image = fish.image,
+      amount = token_balance.amount
+    )
+  );
+}
+
+query get_equipped_fishing_rod(account_id: byte_array): fishing_rod_dto? {
+  val pfp = pfps.get_equipped_pfp(account_id)?.pfp;
+  if (pfp == null) return null;
+
+  val fishing_rod = equipped_fishing_rod @? { pfp } ( .fishing_rod );
+  if (fishing_rod == null) return null;
+
+  return fishing_rod_dto(
+    project = fishing_rod.token.collection.project.name,
+    collection = fishing_rod.token.collection.name,
+    id = fishing_rod.token.id,
+    name = fishing_rod.token.name,
+    durability = fishing_rod.durability,
+    image = fishing_rod.image
   );
 }

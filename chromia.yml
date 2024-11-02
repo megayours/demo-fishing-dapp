@@ -1,6 +1,21 @@
+definitions:
+  - &receiver # Base configuration for a chain that receives messages
+    gtx:
+      modules:
+        - "net.postchain.d1.icmf.IcmfReceiverGTXModule"
+    sync_ext:
+      - "net.postchain.d1.icmf.IcmfReceiverSynchronizationInfrastructureExtension"
+
 blockchains:
   fishing_game:
     module: main
+    config:
+      <<: *receiver
+      icmf:
+        receiver:
+          local:
+            - bc-rid: x"0C034CAB6586CD4F38EAF56721905BA388762906CA75C0C67650F9AB2E69C7BC"
+              topic: 'L_yours_external_amoy_c5f7f51e9de3b92a5f2ad9fd41c9e58c0cd2f2a6'
 
 libs:
   ft4:
@@ -40,4 +55,5 @@ deployments:
     url: https://node0.devnet1.chromia.dev:7740
     brid: x"58FE4D15AA5BDA450CC8E55F7ED63004AB1D2535A123F860D1643FD4108809E3"
     container: gamma
-
+    chains:
+      fishing_game: x"286C551A010BFBCF287A58FD174BC5ADDF92AB7A228B10E5C0F66C0422DB3A9C"

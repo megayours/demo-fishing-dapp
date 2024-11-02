@@ -1,0 +1,81 @@
+# Cursor Rules for Telegram Web App Development
+
+## Project Overview
+We are building a Telegram Web App using Next.js and @telegram-apps/telegram-ui package. These rules ensure consistency and best practices throughout development.
+
+## Version Requirements
+- Always use the latest stable version of Next.js
+- Always use the latest stable version of @telegram-apps/telegram-ui
+- Always use the latest stable version of React
+- Keep all dependencies updated to their latest stable versions
+
+## Code Structure
+- Use the Next.js App Router structure
+- Place components in the `app` directory following Next.js 13+ conventions
+- Maintain TypeScript throughout the project
+
+## Styling Guidelines
+1. Primary Styling:
+   - Use @telegram-apps/telegram-ui components as the primary UI library
+   - Stick to default Telegram Web App styling whenever possible
+   - Maintain Telegram's native look and feel
+
+2. Custom Styling:
+   - If styles are missing from @telegram-apps/telegram-ui:
+     - Create a `styles.css` file in the same directory as the component
+     - Name classes using the format: `componentName_elementName`
+     - Keep custom styles minimal and aligned with Telegram's design system
+
+3. CSS File Structure:
+   ```css
+   /* styles.css template */
+   .componentName_elementName {
+     /* custom styles here */
+   }
+   ```
+
+## Component Guidelines
+1. Default Imports:
+```tsx
+import { Button, Card } from '@telegram-apps/telegram-ui';
+```
+2. Component Structure:
+```tsx
+export default function ComponentName() {
+  return (
+    // Prefer @telegram-apps/telegram-ui components
+  );
+}
+```
+
+3. Text Component:
+```tsx
+<Text Component="header">Header Text</Text>
+```
+
+## Best Practices
+1. Always use Telegram Web App SDK methods through @telegram-apps/telegram-ui
+2. Follow Telegram's Web App guidelines for user experience
+3. Keep custom styling to a minimum
+4. Use semantic HTML within custom components
+5. Maintain mobile-first approach
+
+## Error Handling
+1. Always handle Telegram Web App specific errors
+2. Provide user-friendly error messages following Telegram's UI patterns
+
+## Performance
+1. Optimize for mobile devices
+2. Follow Next.js best practices for performance
+3. Minimize bundle size
+
+## Documentation
+1. Document any custom components
+2. Document any deviations from @telegram-apps/telegram-ui defaults
+3. Include comments for complex logic
+
+## Testing
+1. Test on both desktop and mobile Telegram clients
+2. Ensure compatibility with Telegram's Web App requirements
+
+Remember: The goal is to create a seamless experience that feels native to Telegram while maintaining clean, maintainable code.

@@ -6,6 +6,14 @@ function on_external_create(token: yours.token, attributes: map<text, gtv>) {
   }
 }
 
+@extend(yours.after_mint)
+function on_after_mint(token: yours.token, to: ft4.accounts.account, amount: integer) {
+  val pfp = pfp @? { token };
+  if (pfp != null) {
+    _equip_pfp(pfp, to);
+  }
+}
+
 @extend(yours.after_transfer)
 function on_transfer(yours.token, from: ft4.accounts.account, to: ft4.accounts.account, amount: integer) {
   val pfp = pfp @? { token };
@@ -40,9 +48,6 @@ function _equip_pfp(pfp, account: ft4.accounts.account) {
     // Already equips a PFP
     return;
   }
-  create equipped_pfp(account, pfp);
+  create equipped_pfp ( account, pfp );
   on_equip(pfp);
 }
-
-
-

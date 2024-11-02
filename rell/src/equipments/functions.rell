@@ -2,3 +2,7 @@ function mint(yours.token, ft4.accounts.account, amount: integer) {
   require(yours.has_module(token, module_name), "Token does not support equippables");
   yours.mint(token, yours.balance_info(account, amount));
 }
+
+function get_all_equipments(): list<equipment> {
+  return equipment @* { };
+}

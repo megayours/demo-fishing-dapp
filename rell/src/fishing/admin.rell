@@ -1,0 +1,16 @@
+operation define_fishing_rod(name, description: text, image: text) {
+  create fishing_rod_prototype ( name, description, image, durability = 100 );
+}
+
+operation define_fish(name, description: text, image: text) {
+  val spec = yours.token_info(
+    project = yours.project_info(fishing_rod_project, chain_context.blockchain_rid),
+    collection = fishing_rod_collection,
+    type = yours.token_type.yours,
+    name,
+    modules = [module_name]
+  );
+
+  val token = yours.create_token(spec);
+  create fish ( token, description, image );
+}

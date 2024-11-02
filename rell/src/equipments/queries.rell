@@ -46,6 +46,14 @@ query get_equipped(account_id: byte_array) {
 }
 
 query get_armor(account_id: byte_array, slot: text) {
+  if (slot == "all") {
+    return (a: armor, tb: yours.token_balance) @* {
+      a.equipment.token == tb.token,
+      tb.account.id == account_id,
+      tb.amount > 0
+    } ( _armor_dto (a) );
+  }
+
   return (a: armor, tb: yours.token_balance) @* {
     a.equipment.slot == slot,
     a.equipment.token == tb.token,

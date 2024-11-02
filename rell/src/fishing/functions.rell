@@ -1,3 +1,24 @@
 function _ensure_stats(pfps.pfp) {
   return stats @? { pfp } ?: create stats ( pfp, 0 );
 }
+
+function _mint_fishing_rod(name, ft4.accounts.account) {
+  val prototype = require(fishing_rod_prototype @? { name }, "Fishing rod prototype not found");
+  val spec = yours.token_info(
+    project = yours.project_info(fishing_rod_project, chain_context.blockchain_rid),
+    collection = fishing_rod_collection,
+    type = yours.token_type.yours,
+    name,
+    modules = [module_name]
+  );
+
+  val token = yours.create_token(spec);
+  yours.mint(token, yours.balance_info(account, 1));
+
+  return create fishing_rod (
+    token,
+    description = prototype.description,
+    image = prototype.image,
+    durability = prototype.durability
+  );
+}

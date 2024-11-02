@@ -1,6 +1,21 @@
 entity fishing_rod {
   key yours.token;
+  description: text;
+  image: text;
   mutable durability: integer;
+}
+
+entity fishing_rod_prototype {
+  key name;
+  description: text;
+  image: text;
+  durability: integer;
+}
+
+entity fish {
+  key yours.token;
+  description: text;
+  image: text;
 }
 
 entity equipped_fishing_rod {
