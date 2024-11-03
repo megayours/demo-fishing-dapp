@@ -12,8 +12,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(postchain-client@1.19.0(buffer@6.0.3)(events@3.3.0))(utf-8-validate@5.0.10)
       '@megayours/sdk':
-        specifier: ^0.1.9
-        version: 0.1.9(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(utf-8-validate@5.0.10)
+        specifier: ^0.1.10
+        version: 0.1.10(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(utf-8-validate@5.0.10)
       '@radix-ui/react-icons':
         specifier: ^1.3.1
         version: 1.3.1(react@19.0.0-rc-02c0e824-20241028)
@@ -1026,8 +1026,8 @@ packages:
   '@lit/reactive-element@1.6.3':
     resolution: {integrity: sha512-QuTgnG52Poic7uM1AN5yJ09QMe0O28e10XzSvWDz02TJiiKee4stsiownEIadWm8nYzyDAyT+gKzUoZmiWQtsQ==}
 
-  '@megayours/sdk@0.1.9':
-    resolution: {integrity: sha512-T4CCt1PIrVz9nzmcH3hDtHRzbR6FtMVf6M4+nrDEk3At4g7DmaRHIy0OzVs/diZwYfAawIhOZhfH9nKwo/0V1w==}
+  '@megayours/sdk@0.1.10':
+    resolution: {integrity: sha512-hJApcVOtYQT11P/hxGL6mFC/wXbNG921WFjfHRm780TYkkB/xw575ZvbOZYwAa+vwB/mT6oUK9l9VeXYI84Stg==}
 
   '@metamask/eth-json-rpc-provider@1.0.1':
     resolution: {integrity: sha512-whiUMPlAOrVGmX8aKYVPvlKyG4CpQXiNNyt74vE1xb5sPvmx5oA7B/kOi/JdBvhGQq97U1/AVdXEdk2zkP8qyA==}
@@ -5414,7 +5414,7 @@ snapshots:
     dependencies:
       '@lit-labs/ssr-dom-shim': 1.2.1
 
-  '@megayours/sdk@0.1.9(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(utf-8-validate@5.0.10)':
+  '@megayours/sdk@0.1.10(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(utf-8-validate@5.0.10)':
     dependencies:
       '@chromia/ft4': 1.0.1(buffer@6.0.3)(bufferutil@4.0.8)(events@3.3.0)(postchain-client@1.19.0(buffer@6.0.3)(events@3.3.0))(utf-8-validate@5.0.10)
       postchain-client: 1.19.0(buffer@6.0.3)(events@3.3.0)

@@ -69,3 +69,74 @@ function _unequip_tool(account: ft4.accounts.account, equipment) {
 
   delete equipped;
 }
+
+@extend(yours.populate_metadata)
+function populate_metadata(token: yours.token, modules: set<name>): map<text, gtv> {
+  val metadata = map<text, gtv>();
+  if (not modules.contains(module_name)) return metadata;
+
+  val equipment = equipment @? { token };
+  if (equipment == null) return metadata;
+
+  metadata.put("slot", equipment.slot.to_gtv());
+  metadata.put("weight", equipment.weight.to_gtv());
+  metadata.put("description", equipment.description.to_gtv());
+  metadata.put("image", equipment.image.to_gtv());
+
+  when (equipment.slot) {
+    "weapon" -> {
+      val weapon = weapon @? { equipment };
+      if (weapon != null) {
+        metadata.put("damage", weapon.damage.to_gtv());
+      }
+    };
+    else -> {
+      val armor = armor @? { equipment };
+      if (armor != null) {
+        metadata.put("defense", armor.defense.to_gtv());
+      }
+    }
+  }
+  return metadata;
+}
+
+@extend(yours.after_apply_transfer)
+function after_apply_transfer(token: yours.token, modules: set<name>, properties: map<text, gtv>) {
+  if (not modules.contains(module_name)) return;
+
+  val slot_gtv = properties.get_or_null("slot");
+  if (slot_gtv == null) return;
+  val slot = text.from_gtv(slot_gtv);
+
+  val weight_gtv = properties.get_or_null("weight");
+  if (weight_gtv == null) return;
+  val weight = integer.from_gtv(weight_gtv);
+
+  val image_gtv = properties.get_or_null("image");
+  if (image_gtv == null) return;
+  val image = text.from_gtv(image_gtv);
+
+  val description_gtv = properties.get_or_null("description");
+  if (description_gtv == null) return;
+  val description = text.from_gtv(description_gtv);
+
+  var equipment = equipment @? { token };
+  if (equipment == null) {
+    equipment = create equipment ( token, slot, weight, description, image );
+  }
+
+  when (slot) {
+    "weapon" -> {
+      val damage_gtv = properties.get_or_null("damage");
+      if (damage_gtv == null) return;
+      val damage = integer.from_gtv(damage_gtv);
+      create weapon ( equipment, damage );
+    };
+    else -> {
+      val defense_gtv = properties.get_or_null("defense");
+      if (defense_gtv == null) return;
+      val defense = integer.from_gtv(defense_gtv);
+      create armor ( equipment, defense );
+    }
+  }
+}
