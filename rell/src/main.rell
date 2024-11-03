@@ -11,3 +11,12 @@ import lib.yours.external;
 import equipments;
 import fishing;
 import pfps;
+
+operation iccf_proof(
+  blockchain_rid: byte_array,
+  tx_hash: byte_array,
+  tx_proof: byte_array,
+  tx_data: byte_array,
+  tx_index: integer,
+  anchoring_proof: byte_array
+) { }
