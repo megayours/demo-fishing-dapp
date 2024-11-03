@@ -536,6 +536,7 @@ export default function GameLayout() {
                               e.preventDefault();
                               e.stopPropagation();
                               if (!isCrosschainTransferPending) {
+                                console.log('Transferring item to Battle Game', item);
                                 crosschainTransfer({
                                   project: item.project,
                                   collection: item.collection,
