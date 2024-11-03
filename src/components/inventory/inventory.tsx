@@ -1,5 +1,6 @@
 import { Pfp } from "@/hooks/dapp-api/types";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 import Image from "next/image";
 
 type InventoryProps = {
@@ -7,6 +8,7 @@ type InventoryProps = {
   items: Pfp[];
   equippedId?: number;
   onItemClick?: (item: Pfp) => void;
+  onContextMenu?: (e: React.MouseEvent, item: Pfp) => void;
   className?: string;
 };
 
@@ -15,6 +17,7 @@ export function Inventory({
   items, 
   equippedId, 
   onItemClick,
+  onContextMenu,
   className 
 }: InventoryProps) {
   return (
@@ -25,11 +28,12 @@ export function Inventory({
           <div 
             key={item.id}
             onClick={() => onItemClick?.(item)}
+            onContextMenu={(e) => onContextMenu?.(e, item)}
             className={cn(
-              "group relative aspect-square bg-blue-950/50 border rounded-lg transition-all duration-300 cursor-pointer overflow-hidden",
+              "group relative aspect-square rounded-lg transition-all duration-300 cursor-pointer overflow-hidden",
               equippedId === item.id 
-                ? "border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.3)]" 
-                : "border-blue-800 hover:border-blue-400"
+                ? "bg-emerald-950/30 border-2 border-emerald-400/50" 
+                : "bg-blue-950/50 border border-blue-800 hover:border-blue-400"
             )}
           >
             {/* NFT Image */}
@@ -49,8 +53,8 @@ export function Inventory({
 
             {/* Equipped Badge */}
             {equippedId === item.id && (
-              <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-                Equipped
+              <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                <Check className="w-3 h-3" />
               </div>
             )}
           </div>

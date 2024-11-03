@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthButtons } from "@/components/auth/auth-buttons";
-import { Fish, Loader2, ArrowDown, ArrowUp, Space, ChevronUp, ChevronDown, Shield } from "lucide-react";
+import { Fish, Loader2, ArrowDown, ArrowUp, Space, ChevronUp, ChevronDown, Shield, MoreVertical, ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Inventory } from "@/components/inventory/inventory";
@@ -21,6 +21,7 @@ import {
 } from "@/hooks/dapp-api/useDappApi";
 import Image from "next/image";
 import { Weapon } from "@/hooks/dapp-api/types";
+import { useCrosschainTransfer } from "@/hooks/dapp-api/useDappApi";
 
 type GameState = "idle" | "casting" | "fishing";
 type FishDirection = "left" | "right";
@@ -172,6 +173,19 @@ export default function GameLayout() {
     ...(weapons ?? []),
     ...(armor ?? [])
   ];
+
+  // Crosschain transfer function
+  const { mutate: crosschainTransfer, isPending: isCrosschainTransferPending } = useCrosschainTransfer();
+
+  // Add state for menu
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  // Add click handler to close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -475,7 +489,10 @@ export default function GameLayout() {
                   {equipment.map((item) => (
                     <div 
                       key={item.id}
-                      className="group relative aspect-square bg-blue-950/50 border border-blue-800 rounded-lg overflow-hidden"
+                      className={cn(
+                        "group relative aspect-square bg-blue-950/50 border border-blue-800 rounded-lg overflow-hidden",
+                        "hover:border-blue-400"
+                      )}
                     >
                       {/* Equipment Image */}
                       <Image
@@ -489,6 +506,56 @@ export default function GameLayout() {
                       <div className="absolute top-2 right-2 bg-blue-500/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full shadow-lg">
                         {(item as Weapon).damage !== undefined ? 'Weapon' : 'Armor'}
                       </div>
+
+                      {/* Menu Button */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === item.id ? null : item.id);
+                        }}
+                        className={cn(
+                          "absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-sm transition-all duration-200 z-50",
+                          "bg-blue-900/80 hover:bg-blue-800",
+                          "group-hover:opacity-100 opacity-0" // Only show on hover
+                        )}
+                        title="Options"
+                      >
+                        <MoreVertical className="w-4 h-4 text-white" />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openMenuId === item.id && (
+                        <div 
+                          className="absolute top-12 left-2 z-50 bg-blue-900/95 backdrop-blur-sm border border-blue-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+                          onClick={(e) => e.stopPropagation()} // Prevent click from bubbling
+                        >
+                          <button
+                            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-blue-800/50 transition-colors flex items-center gap-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!isCrosschainTransferPending) {
+                                crosschainTransfer({
+                                  project: item.project,
+                                  collection: item.collection,
+                                  id: item.id,
+                                  amount: 1
+                                });
+                                setOpenMenuId(null);
+                              }
+                            }}
+                            disabled={isCrosschainTransferPending}
+                          >
+                            {isCrosschainTransferPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ArrowUpRight className="w-4 h-4" />
+                            )}
+                            Transfer to Battle Game
+                          </button>
+                        </div>
+                      )}
                       
                       {/* Overlay with Equipment info */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

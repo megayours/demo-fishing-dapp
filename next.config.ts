@@ -1,17 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
-        hostname: 'ipfs.io',
-      },
-      {
-        hostname: 'cdn-icons-png.flaticon.com',
+        protocol: 'https',
+        hostname: '**',
       },
     ],
-  },
+  }
 };
 
 export default nextConfig;

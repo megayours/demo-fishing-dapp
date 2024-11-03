@@ -3,6 +3,8 @@ import { nop, op } from '@chromia/ft4';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BaseToken, FishingRod, Pfp } from './types';
 import { convertIpfsToGatewayUrl } from '@/lib/utils';
+import { createMegaYoursClient, performCrossChainTransfer } from '@megayours/sdk';
+import { createClient } from 'postchain-client';
 
 export function useEquippedPfp() {
   const { chromiaSession, chromiaClient, authStatus } = useChromia();
@@ -283,5 +285,37 @@ export function useWeapons() {
       }));
     },
     enabled: Boolean(chromiaClient) && Boolean(chromiaSession) && authStatus === 'connected',
+  });
+}
+
+
+export function useCrosschainTransfer() {
+  const { chromiaSession } = useChromia();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ project, collection, id, amount }: { project: string, collection: string, id: number, amount: number }) => {
+      if (!chromiaSession) {
+        throw new Error('Not connected to Chromia');
+      }
+
+      const megaClient = createMegaYoursClient(chromiaSession);
+
+      const targetChain = await createClient({
+        directoryNodeUrlPool: process.env.NEXT_PUBLIC_DIRECTORY_NODE_URL_POOL,
+        blockchainRid: process.env.NEXT_PUBLIC_BATTLE_DAPP_BLOCKCHAIN_RID,
+      });
+
+      await megaClient.transferCrosschain(targetChain, chromiaSession.account.id, project, collection, id, amount);
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries after successful mutation
+      queryClient.invalidateQueries({ 
+        queryKey: [
+          'armor',
+          'weapons'
+        ] 
+      });
+    },
   });
 }
