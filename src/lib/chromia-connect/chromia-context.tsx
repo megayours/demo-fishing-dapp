@@ -11,7 +11,7 @@ import {
 } from "@chromia/ft4";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { IClient } from "postchain-client";
-import { createClient } from "postchain-client";
+import { createClient, FailoverStrategy } from "postchain-client";
 import type React from "react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -65,7 +65,12 @@ export const ChromiaProvider: React.FunctionComponent<
   const { data: chromiaClient, isLoading: isChromiaClientLoading } = useQuery({
     queryKey: ["chromiaClient"],
     queryFn: async () => {
-      const client = await createClient(config);
+      const client = await createClient({
+        ...config, failOverConfig: {
+          attemptsPerEndpoint: 20,
+          strategy: FailoverStrategy.TryNextOnError,
+        }
+      });
 
       return client;
     },

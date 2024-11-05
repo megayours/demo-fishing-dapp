@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BaseToken, FishingRod, Pfp } from './types';
 import { convertIpfsToGatewayUrl } from '@/lib/utils';
 import { createMegaYoursClient, performCrossChainTransfer } from '@megayours/sdk';
-import { createClient } from 'postchain-client';
+import { createClient, FailoverStrategy } from 'postchain-client';
 
 export function useEquippedPfp() {
   const { chromiaSession, chromiaClient, authStatus } = useChromia();
@@ -213,15 +213,18 @@ export function usePullFishingRod() {
         .buildAndSend();
     },
     onSuccess: () => {
-      // Invalidate relevant queries after successful mutation
+      // Force refetch all relevant queries after successful pull
       queryClient.invalidateQueries({ 
-        queryKey: [
-          'all_fishing_rods', 
-          'equipped_fishing_rod', 
-          'caught_fishes',
-          'armor',
-          'weapons'
-        ] 
+        queryKey: ['caught_fishes'],
+        refetchType: 'active',
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['armor'],
+        refetchType: 'active',
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['weapons'],
+        refetchType: 'active',
       });
     },
   });
@@ -304,6 +307,10 @@ export function useCrosschainTransfer() {
       const targetChain = await createClient({
         directoryNodeUrlPool: process.env.NEXT_PUBLIC_DIRECTORY_NODE_URL_POOL,
         blockchainRid: process.env.NEXT_PUBLIC_BATTLE_DAPP_BLOCKCHAIN_RID,
+        failOverConfig: {
+          attemptsPerEndpoint: 20,
+          strategy: FailoverStrategy.TryNextOnError,
+        }
       });
 
       await megaClient.transferCrosschain(targetChain, chromiaSession.account.id, project, collection, id, amount);

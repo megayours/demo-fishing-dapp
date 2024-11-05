@@ -22,6 +22,8 @@ import {
 import Image from "next/image";
 import { Weapon } from "@/hooks/dapp-api/types";
 import { useCrosschainTransfer } from "@/hooks/dapp-api/useDappApi";
+import { useQueryClient, UseMutateFunction } from "@tanstack/react-query";
+import { useChromia } from "@/lib/chromia-connect/chromia-context";
 
 type GameState = "idle" | "casting" | "fishing";
 type FishDirection = "left" | "right";
@@ -34,7 +36,20 @@ interface SwimmingFish {
   speed: number;
 }
 
+interface SplashEffect {
+  id: number;
+  x: number;
+  y: number;
+}
+
+interface Toast {
+  id: number;
+  message: string;
+  type: 'loading' | 'success' | 'error';
+}
+
 export default function GameLayout() {
+  const queryClient = useQueryClient();
   const [gameState, setGameState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
   const [bobPosition, setBobPosition] = useState(0); // start at top (0%)
@@ -50,6 +65,7 @@ export default function GameLayout() {
   const { data: caughtFishes, isLoading: isLoadingFishes } = useCaughtFishes();
   const { data: armor, isLoading: isLoadingArmor } = useArmor();
   const { data: weapons, isLoading: isLoadingWeapons } = useWeapons();
+  const { chromiaClient, chromiaSession } = useChromia();
 
   // Instructions panel state
   const [showInstructions, setShowInstructions] = useState(true);
@@ -112,31 +128,87 @@ export default function GameLayout() {
     }
   };
 
-  // Handle successful catch
-  const handleCatch = () => {
-    if (gameState !== "fishing") return;
-    
-    // Check for catch
-    const catchableFish = fish.find(f => 
-      Math.abs(f.y - bobPosition) < 10 && // Vertical proximity
-      f.x > 45 && f.x < 55 // Horizontal proximity (center of screen)
-    );
-
-    if (catchableFish) {
-      // Hide bob during catch animation
-      setBobPosition(-10); // Move bob off screen
-      setScore(prev => prev + 1);
-      setFish(prev => prev.filter(f => f.id !== catchableFish.id));
-      
-      // Call the pull operation when catching a fish
-      pullRod();
-
-      // Reset bob position after catch animation
-      setTimeout(() => {
-        setBobPosition(20);
-      }, 1500);
+  // Pre-load the pull operation to prevent first-catch lag
+  useEffect(() => {
+    if (gameState === "fishing") {
+      // Warm up the mutation cache
+      queryClient.getMutationCache().build(queryClient, {
+        mutationKey: ['pull_fishing_rod'],
+        mutationFn: () => {
+          pullRod();
+          return Promise.resolve();
+        },
+      });
     }
-  };
+  }, [gameState, queryClient, pullRod]);
+
+  // Add a new state to track if we're currently catching a fish
+  const [isCatching, setIsCatching] = useState(false);
+
+  // Check for fish collision with bob
+  useEffect(() => {
+    if (gameState !== "fishing" || isCatching) return;
+
+    const checkCollision = () => {
+      console.log('Checking collisions...', {
+        bobPosition,
+        fishCount: fish.length,
+        isCatching
+      });
+
+      const catchableFish = fish.find(f => {
+        // Calculate center points
+        const bobY = bobPosition;
+        const fishY = f.y;
+        const fishX = f.x;
+        
+        // More lenient collision detection
+        const verticalProximity = Math.abs(fishY - bobY) < 25;
+        const horizontalProximity = Math.abs(fishX - 50) < 20;
+
+        // Debug every fish position
+        console.log('Fish position:', {
+          fishId: f.id,
+          fishX,
+          fishY,
+          bobY,
+          verticalDistance: Math.abs(fishY - bobY),
+          horizontalDistance: Math.abs(fishX - 50),
+          isVerticalHit: verticalProximity,
+          isHorizontalHit: horizontalProximity,
+          willCatch: verticalProximity && horizontalProximity
+        });
+        
+        return verticalProximity && horizontalProximity;
+      });
+
+      if (catchableFish && !isCatching) {
+        console.log('Caught fish!', {
+          fishId: catchableFish.id,
+          position: { x: catchableFish.x, y: catchableFish.y },
+          bobPosition
+        });
+
+        setIsCatching(true);
+        setBobPosition(-10);
+        setScore(prev => prev + 1);
+        setFish(prev => prev.filter(f => f.id !== catchableFish.id));
+        
+        console.log('Calling pullRod mutation...');
+        pullRod();
+
+        setTimeout(() => {
+          setBobPosition(20);
+          setIsCatching(false);
+          console.log('Reset bob position to 20, ready to catch again');
+        }, 1500);
+      }
+    };
+
+    // Check for collisions less frequently to reduce log spam
+    const interval = setInterval(checkCollision, 100); // Reduced from 60fps to 10fps
+    return () => clearInterval(interval);
+  }, [gameState, fish, bobPosition, pullRod, isCatching]);
 
   // Keyboard controls
   useEffect(() => {
@@ -154,9 +226,7 @@ export default function GameLayout() {
         e.stopPropagation();
       }
 
-      if (e.code === "Space") {
-        handleCatch();
-      } else if (e.code === "ArrowDown") {
+      if (e.code === "ArrowDown") {
         setBobPosition(prev => Math.min(prev + 5, 80));
       } else if (e.code === "ArrowUp") {
         setBobPosition(prev => Math.max(prev - 5, 20));
@@ -166,7 +236,7 @@ export default function GameLayout() {
     // Use capture phase to intercept events before other handlers
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-  }, [gameState, fish]);
+  }, [gameState]);
 
   // Combine equipment for display
   const equipment = [
@@ -187,8 +257,82 @@ export default function GameLayout() {
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const [splashEffects, setSplashEffects] = useState<SplashEffect[]>([]);
+
+  // Handle click/touch on game area
+  const handleGameAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== "fishing") return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Add splash effect
+    const newSplash = { id: Date.now(), x, y };
+    setSplashEffects(prev => [...prev, newSplash]);
+
+    // Remove splash effect after animation
+    setTimeout(() => {
+      setSplashEffects(prev => prev.filter(splash => splash.id !== newSplash.id));
+    }, 1000);
+
+    // Check if we clicked on a fish
+    const clickedFish = fish.find(f => {
+      const distanceX = Math.abs(f.x - x);
+      const distanceY = Math.abs(f.y - y);
+      return distanceX < 10 && distanceY < 10; // Increased hit box
+    });
+
+    if (clickedFish) {
+      setScore(prev => prev + 1);
+      setFish(prev => prev.filter(f => f.id !== clickedFish.id));
+      pullRod();
+    }
+  };
+
+  // Start game when instructions are closed
+  const handleStartGame = () => {
+    setShowInstructions(false);
+    setGameState("fishing"); // Start spawning fish
+  };
+
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = (message: string, type: Toast['type']) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, 3000);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Toast Container */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={cn(
+              "animate-slide-down px-4 py-2 rounded-lg shadow-lg text-white min-w-[200px] text-center",
+              {
+                'bg-blue-500': toast.type === 'loading',
+                'bg-emerald-500': toast.type === 'success',
+                'bg-red-500': toast.type === 'error'
+              }
+            )}
+          >
+            {toast.type === 'loading' && (
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {toast.message}
+              </div>
+            )}
+            {toast.type !== 'loading' && toast.message}
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
       <header className="bg-blue-900/50 backdrop-blur-sm border-b border-blue-800 p-4">
         <div className="container mx-auto flex justify-between items-center">
@@ -203,149 +347,103 @@ export default function GameLayout() {
       {/* Game Section */}
       <section className="flex-1 container mx-auto p-4">
         <div 
-          className="bg-blue-900/30 backdrop-blur-sm border border-blue-800 rounded-lg p-8 h-[600px] relative overflow-hidden"
-          onClick={handleCatch} // Add click handler for mobile catch
+          className="bg-blue-900/30 backdrop-blur-sm border border-blue-800 rounded-lg p-8 h-[600px] relative overflow-hidden cursor-crosshair"
+          onClick={handleGameAreaClick}
         >
           {/* Instructions */}
-          {showInstructions && (
+          {showInstructions ? (
             <div className="absolute top-4 left-4 z-50 bg-black/70 p-4 rounded-lg text-white max-w-md">
               <h3 className="text-lg font-bold mb-2">How to Play:</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <ArrowDown className="w-4 h-4" /> Hold to reel in (or use buttons on mobile)
-                </li>
-                <li className="flex items-center gap-2">
-                  <ArrowUp className="w-4 h-4" /> Hold to release line (or use buttons on mobile)
-                </li>
-                <li className="flex items-center gap-2">
-                  <Space className="w-4 h-4" /> Press space or tap screen to catch when fish aligns with bob
-                </li>
-              </ul>
+              <p className="text-sm mb-4">Click on the fish to catch them!</p>
               <button 
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent catch trigger
-                  setShowInstructions(false);
+                  e.stopPropagation();
+                  handleStartGame();
                 }}
-                className="mt-4 text-xs text-blue-300 hover:text-blue-200 transition-colors"
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors text-sm"
               >
-                Got it!
+                Start Fishing!
               </button>
+            </div>
+          ) : (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+              {gameState === "idle" && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGameState("fishing");
+                  }}
+                  className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg transition-all duration-200 hover:scale-105"
+                >
+                  Start Fishing
+                </button>
+              )}
             </div>
           )}
 
-          {/* Water and Game Elements */}
+          {/* Water Animation */}
           <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 to-blue-950/40">
             <div className="absolute inset-0 opacity-30 bg-[url('/waves.png')] bg-repeat-x animate-wave" />
           </div>
 
-          {/* Game Elements Container */}
-          <div className="relative h-full">
-            {/* Character with PFP */}
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-48 flex flex-col items-center z-40">
-              {equippedPfp ? (
-                <>
-                  {/* PFP Image Container */}
-                  <div className="relative w-32 h-32">
-                    <Image
-                      src={equippedPfp.image}
-                      alt={equippedPfp.name}
-                      fill
-                      className="object-cover rounded-full border-4 border-blue-400/30 shadow-[0_0_15px_rgba(96,165,250,0.3)]"
-                    />
-                  </div>
-                  <p className="text-blue-200 text-sm font-medium mt-2">
-                    {equippedPfp.name}
-                  </p>
-                </>
-              ) : (
-                // Fallback silhouette
-                <div className="w-48 h-32 bg-black/20 rounded-t-full" />
-              )}
-            </div>
-
-            {/* Fishing Line Container - Full Height Reference */}
-            <div className="absolute inset-0">
-              {/* Fishing Line */}
-              <div 
-                className="absolute left-1/2 w-[1px] bg-white/20 z-10"
-                style={{ 
-                  top: `${bobPosition}%`,
-                  bottom: '140px', // Start from above PFP
-                  transform: 'translateX(-50%)',
-                }}
-              />
-              
-              {/* Fishing Bob - Hide during catch */}
-              <div 
-                className="absolute left-1/2 -translate-x-1/2 z-20 transition-all duration-500"
-                style={{ 
-                  top: `${bobPosition}%`,
-                  opacity: bobPosition < 0 ? 0 : 1 // Fade out when off screen
-                }}
-              >
-                {/* Main bob body */}
-                <div className="relative flex flex-col items-center">
-                  {/* Top cone */}
-                  <div className="w-2 h-2 bg-red-500 rounded-full" />
-                  {/* Middle section */}
-                  <div className="w-3 h-4 bg-gradient-to-b from-red-500 to-white rounded-b-lg" />
-                  {/* Bottom tip */}
-                  <div className="w-1 h-2 bg-white rounded-b-full" />
-                </div>
+          {/* Splash Effects */}
+          {splashEffects.map(splash => (
+            <div
+              key={splash.id}
+              className="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ 
+                left: `${splash.x}%`, 
+                top: `${splash.y}%` 
+              }}
+            >
+              {/* Ripple Effect */}
+              <div className="absolute inset-0 animate-ripple rounded-full border-4 border-cyan-400/30" />
+              <div className="absolute inset-0 animate-ripple-delayed rounded-full border-2 border-cyan-400/20" />
+              {/* Splash Particles */}
+              <div className="absolute inset-0 animate-splash">
+                <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-cyan-400/60 rounded-full transform -translate-x-1/2 -translate-y-1/2" />
               </div>
             </div>
+          ))}
 
-            {/* Swimming Fish */}
-            {fish.map(f => (
-              <Fish 
-                key={f.id}
-                className={cn(
-                  "absolute text-cyan-400 w-12 h-12 transition-transform duration-200 z-15",
-                  f.direction === "left" ? "scale-x-1" : "scale-x-[-1]"
-                )}
-                style={{ 
-                  top: `${f.y}%`,
-                  left: `${f.x}%`,
-                  filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.3))'
-                }}
-              />
-            ))}
+          {/* Swimming Fish */}
+          {fish.map(f => (
+            <Fish 
+              key={f.id}
+              className={cn(
+                "absolute text-cyan-400 w-12 h-12 transition-transform duration-200 z-15 cursor-pointer",
+                f.direction === "left" ? "scale-x-1" : "scale-x-[-1]"
+              )}
+              style={{ 
+                top: `${f.y}%`,
+                left: `${f.x}%`,
+                filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.3))'
+              }}
+            />
+          ))}
+
+          {/* Character with PFP */}
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-48 flex flex-col items-center z-40">
+            {equippedPfp ? (
+              <>
+                {/* PFP Image Container */}
+                <div className="relative w-32 h-32">
+                  <Image
+                    src={equippedPfp.image}
+                    alt={equippedPfp.name}
+                    fill
+                    className="object-cover rounded-full border-4 border-blue-400/30 shadow-[0_0_15px_rgba(96,165,250,0.3)]"
+                  />
+                </div>
+                <p className="text-blue-200 text-sm font-medium mt-2">
+                  {equippedPfp.name}
+                </p>
+              </>
+            ) : (
+              // Fallback silhouette
+              <div className="w-48 h-32 bg-black/20 rounded-t-full" />
+            )}
           </div>
-
-          {/* Game State UI */}
-          {gameState === "idle" ? (
-            <button 
-              onClick={() => setGameState("fishing")}
-              className="absolute top-4 left-1/2 -translate-x-1/2 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-lg transition-all duration-200 hover:scale-105"
-            >
-              Start Fishing
-            </button>
-          ) : (
-            <div className="absolute top-4 right-4 text-2xl font-bold text-emerald-400">
-              Score: {score}
-            </div>
-          )}
-
-          {/* Mobile Controls - Only show on touch devices */}
-          {gameState === "fishing" && (
-            <div className="md:hidden absolute bottom-32 left-0 right-0 flex justify-between px-8 z-50">
-              {/* Reel In Button (Down) */}
-              <button
-                onTouchStart={() => setBobPosition(prev => Math.min(prev + 5, 80))}
-                className="w-16 h-16 bg-black/30 rounded-full flex items-center justify-center backdrop-blur-sm active:bg-black/50 transition-colors"
-              >
-                <ChevronDown className="w-8 h-8 text-white" />
-              </button>
-
-              {/* Release Line Button (Up) */}
-              <button
-                onTouchStart={() => setBobPosition(prev => Math.max(prev - 5, 20))}
-                className="w-16 h-16 bg-black/30 rounded-full flex items-center justify-center backdrop-blur-sm active:bg-black/50 transition-colors"
-              >
-                <ChevronUp className="w-8 h-8 text-white" />
-              </button>
-            </div>
-          )}
         </div>
       </section>
 
@@ -406,53 +504,44 @@ export default function GameLayout() {
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Your Caught Fishes</h2>
-              <span className="text-blue-200">
-                Total Caught: {caughtFishes?.reduce((acc, fish) => acc + fish.amount, 0) ?? 0}
-              </span>
-            </div>
-            <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-800 rounded-lg p-8">
-              {caughtFishes && caughtFishes.length > 0 ? (
-                <div className="grid grid-cols-6 gap-4">
-                  {caughtFishes.map((fish) => (
-                    <div 
-                      key={fish.id}
-                      className="group relative aspect-square bg-blue-950/50 border border-blue-800 rounded-lg overflow-hidden"
-                    >
-                      {/* Fish Image */}
-                      <Image
-                        src={fish.image}
-                        alt={fish.name}
-                        fill
-                        className="object-cover rounded-lg"
-                      />
-                      
-                      {/* Amount Badge */}
-                      <div className="absolute top-2 right-2 bg-emerald-500/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full shadow-lg">
-                        ×{fish.amount}
-                      </div>
-                      
-                      {/* Overlay with Fish info */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                          <p className="text-sm font-medium truncate">{fish.name}</p>
-                          <p className="text-xs text-blue-200">Caught: {fish.amount}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-blue-200">
-                  <Fish className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No fishes caught yet!</p>
-                  <p className="text-sm opacity-75 mt-2">Start fishing to fill your collection</p>
-                </div>
-              )}
-            </div>
+          <Inventory
+            title="Your Caught Fishes"
+            items={caughtFishes ?? []}
+            className="space-y-4"
+          />
+        )}
+
+        {/* Found Equipment Inventory */}
+        {isLoadingArmor || isLoadingWeapons ? (
+          <div className="flex items-center justify-center p-12">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
           </div>
+        ) : (
+          <Inventory
+            title="Found Equipment"
+            items={equipment}
+            onContextMenu={(item) => {
+              if (!isCrosschainTransferPending) {
+                showToast('Transferring to Battle Game...', 'loading');
+                crosschainTransfer(
+                  {
+                    project: item.project,
+                    collection: item.collection,
+                    id: item.id,
+                    amount: 1
+                  },
+                  {
+                    onSuccess: () => {
+                      showToast('Successfully transferred to Battle Game!', 'success');
+                    },
+                    onError: () => {
+                      showToast('Failed to transfer. Please try again.', 'error');
+                    }
+                  }
+                );
+              }
+            }}
+          />
         )}
 
         {/* Game Requirements Notice */}
@@ -467,121 +556,6 @@ export default function GameLayout() {
                 <li>Buy and equip a fishing rod</li>
               )}
             </ul>
-          </div>
-        )}
-
-        {/* Equipment Inventory */}
-        {isLoadingArmor || isLoadingWeapons ? (
-          <div className="flex items-center justify-center p-12">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Found Equipment</h2>
-              <span className="text-blue-200">
-                Total Found: {equipment.length}
-              </span>
-            </div>
-            <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-800 rounded-lg p-8">
-              {equipment.length > 0 ? (
-                <div className="grid grid-cols-6 gap-4">
-                  {equipment.map((item) => (
-                    <div 
-                      key={item.id}
-                      className={cn(
-                        "group relative aspect-square bg-blue-950/50 border border-blue-800 rounded-lg overflow-hidden",
-                        "hover:border-blue-400"
-                      )}
-                    >
-                      {/* Equipment Image */}
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover rounded-lg"
-                      />
-                      
-                      {/* Equipment Type Badge */}
-                      <div className="absolute top-2 right-2 bg-blue-500/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full shadow-lg">
-                        {(item as Weapon).damage !== undefined ? 'Weapon' : 'Armor'}
-                      </div>
-
-                      {/* Menu Button */}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === item.id ? null : item.id);
-                        }}
-                        className={cn(
-                          "absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-sm transition-all duration-200 z-50",
-                          "bg-blue-900/80 hover:bg-blue-800",
-                          "group-hover:opacity-100 opacity-0" // Only show on hover
-                        )}
-                        title="Options"
-                      >
-                        <MoreVertical className="w-4 h-4 text-white" />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      {openMenuId === item.id && (
-                        <div 
-                          className="absolute top-12 left-2 z-50 bg-blue-900/95 backdrop-blur-sm border border-blue-700 rounded-lg shadow-xl py-1 min-w-[160px]"
-                          onClick={(e) => e.stopPropagation()} // Prevent click from bubbling
-                        >
-                          <button
-                            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-blue-800/50 transition-colors flex items-center gap-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (!isCrosschainTransferPending) {
-                                console.log('Transferring item to Battle Game', item);
-                                crosschainTransfer({
-                                  project: item.project,
-                                  collection: item.collection,
-                                  id: item.id,
-                                  amount: 1
-                                });
-                                setOpenMenuId(null);
-                              }
-                            }}
-                            disabled={isCrosschainTransferPending}
-                          >
-                            {isCrosschainTransferPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <ArrowUpRight className="w-4 h-4" />
-                            )}
-                            Transfer to Battle Game
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Overlay with Equipment info */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                          <p className="text-sm font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-blue-200">
-                            {(item as Weapon).damage !== undefined 
-                              ? `Damage: ${(item as Weapon).damage}`
-                              : `Defense: ${(item as Armor).defense}`
-                            }
-                          </p>
-                          <p className="text-xs text-blue-200">Weight: {item.weight}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-blue-200">
-                  <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No equipment found yet!</p>
-                  <p className="text-sm opacity-75 mt-2">Keep fishing to find equipment</p>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </section>
