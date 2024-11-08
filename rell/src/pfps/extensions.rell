@@ -2,7 +2,7 @@
 function on_external_create(token: yours.token, attributes: map<text, gtv>) {
   when (token.collection.name) {
     "Pudgy Penguins" -> _create_pfp(token, attributes);
-    "Lil Pudgy" -> _create_pfp(token, attributes);
+    "Lil Pudgys" -> _create_pfp(token, attributes);
     "Mocaverse" -> _create_pfp(token, attributes);
     "Azuki" -> _create_pfp(token, attributes);
     else -> return;
