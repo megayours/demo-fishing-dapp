@@ -16,6 +16,12 @@ blockchains:
           local:
             - bc-rid: x"0C034CAB6586CD4F38EAF56721905BA388762906CA75C0C67650F9AB2E69C7BC"
               topic: 'L_yours_external_amoy_c5f7f51e9de3b92a5f2ad9fd41c9e58c0cd2f2a6'
+            - bc-rid: x"0C034CAB6586CD4F38EAF56721905BA388762906CA75C0C67650F9AB2E69C7BC"
+              topic: 'L_yours_external_amoy_7ddf0ca2e6ef5dac06ed79864e2cb40659b38401'
+            - bc-rid: x"0C034CAB6586CD4F38EAF56721905BA388762906CA75C0C67650F9AB2E69C7BC"
+              topic: 'L_yours_external_amoy_6721b9f19a1667e77107581ef79b9f2f106e81e0'
+            - bc-rid: x"0C034CAB6586CD4F38EAF56721905BA388762906CA75C0C67650F9AB2E69C7BC"
+              topic: 'L_yours_external_amoy_687b124886f203197ce68dc0ff14827dd13769ed'
 
 libs:
   ft4:
@@ -39,7 +45,7 @@ libs:
     registry: git@github.com:megayours/yours-protocol.git
     path: src/lib/yours
     tagOrBranch: main
-    rid: x"6B5C9CC354902E78389795BF3F4737ACD84F29839BE274323D2D2FBDDEDC3D16"
+    rid: x"0AEBCE8CE6AC6BC2A3C6A3F1D62C936920D58F7D507B1C285B7C64CDDDF923AF"
     insecure: false
 
 compile:
