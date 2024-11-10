@@ -9,8 +9,8 @@ export const polygonAmoy: Chain = {
     symbol: 'POL',
   },
   rpcUrls: {
-    default: { http: ['https://rpc-amoy.polygon.technology'] },
-    public: { http: ['https://rpc-amoy.polygon.technology'] },
+    default: { http: ['https://polygon-amoy-bor-rpc.publicnode.com'] },
+    public: { http: ['https://polygon-amoy-bor-rpc.publicnode.com'] },
   },
   blockExplorers: {
     default: { name: 'PolygonScan', url: 'https://amoy.polygonscan.com/' },
