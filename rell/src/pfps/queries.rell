@@ -1,5 +1,5 @@
 query get_all(account_id: byte_array) {
-  return (pfp, tb: yours.token_balance) @* { 
+  return (pfp, tb: yours.token_balance) @* {
     pfp.token == tb.token,
     tb.account.id == account_id,
     tb.amount > 0

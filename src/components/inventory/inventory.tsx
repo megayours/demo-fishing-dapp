@@ -35,7 +35,7 @@ export function Inventory<T extends BaseToken>({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {items.map((item) => (
           <div 
-            key={item.id}
+            key={`${item.project}-${item.collection}-${item.id}`}
             onClick={() => onItemClick?.(item)}
             className={cn(
               "group relative aspect-square rounded-lg transition-all duration-300 cursor-pointer overflow-hidden",
